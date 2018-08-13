@@ -1,0 +1,84 @@
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+import logging
+import requests
+import re
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+tokens = []
+
+# Define a few command handlers. These usually take the two arguments bot and
+# update. Error handlers also receive the raised TelegramError object in error.
+def start(bot, update, args, job_queue, user_data, chat_data):
+    """Send a message when the command /start is issued."""
+    update.message.reply_text('Hi. Type /stop to stop receiving messages.')
+    chat_data['id'] = update.message.chat_id
+    chat_data['token'] = args[0]
+    chat_data['last_list'] = []
+    print chat_data.values()
+    job = job_queue.run_repeating(parse_for_new_cars, 3600, context=chat_data)
+    print args[0]
+    chat_data['job'] = job
+
+
+
+def parse_for_new_cars(bot, job):
+    s = requests.Session()
+    r = s.get('http://new.poolbeheer.nl/token='+job.context['token'])
+    current_ids = re.findall("(?:/poolsite/select/car_id=)(\d+)", r.text)
+    new_car_found = False
+    print 'Current list: '
+    print job.context['last_list']
+    for carid in current_ids:
+    	if int(carid) not in job.context['last_list']:
+	    new_car_found = True
+	    r2 = s.get('http://new.poolbeheer.nl/poolsite/select/car_id='+carid)
+	    auto = re.search('(?:<h3>)(.*?)(?:</h3>)', r2.text).group(1)
+	    bot.send_message(job.context['id'], 'New car found:' + auto)
+    job.context['last_list'] = map(int, current_ids)
+    if not new_car_found:
+    	print 'Job run. No car found'
+
+def stop(bot, update, args, job_queue, user_data, chat_data):
+    '''Stop getting messages'''
+    if 'job' in chat_data and chat_data['job']:
+    	chat_data['job'].schedule_removal()
+    if 'token' in chat_data:
+        chat_data['token'] = ''
+    update.message.reply_text('Stopped searching for pool cars')
+
+
+def error(bot, update, error):
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, error)
+
+
+def main():
+    """Start the bot."""
+    # Create the EventHandler and pass it your bot's token.
+    updater = Updater("YOUR TOKEN HERE")
+
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+
+    # on different commands - answer in Telegram
+    dp.add_handler(CommandHandler("start", start, pass_args=True, pass_job_queue=True, pass_user_data=True, pass_chat_data=True))
+    dp.add_handler(CommandHandler("stop", stop, pass_args=True, pass_job_queue=True, pass_user_data=True, pass_chat_data=True))
+
+    # log all errors
+    dp.add_error_handler(error)
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
