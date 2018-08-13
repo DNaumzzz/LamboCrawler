@@ -33,7 +33,7 @@ def parse_for_new_cars(bot, job):
     print 'Current list: '
     print job.context['last_list']
     for carid in current_ids:
-    	if int(carid) not in job.context['last_list']:
+        if int(carid) not in job.context['last_list']:
 	    new_car_found = True
 	    r2 = s.get('http://new.poolbeheer.nl/poolsite/select/car_id='+carid)
 	    auto = re.search('(?:<h3>)(.*?)(?:</h3>)', r2.text).group(1)
