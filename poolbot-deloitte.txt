@@ -18,7 +18,7 @@ def start(bot, update, args, job_queue, user_data, chat_data):
     chat_data['id'] = update.message.chat_id
     chat_data['token'] = args[0]
     chat_data['last_list'] = []
-    print chat_data.values()
+    print (chat_data.values)
     job = job_queue.run_repeating(parse_for_new_cars, 3600, context=chat_data)
     print args[0]
     chat_data['job'] = job
