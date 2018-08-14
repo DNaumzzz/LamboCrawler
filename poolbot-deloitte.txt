@@ -1,4 +1,3 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import logging
 import requests
 import re
@@ -18,9 +17,9 @@ def start(bot, update, args, job_queue, user_data, chat_data):
     chat_data['id'] = update.message.chat_id
     chat_data['token'] = args[0]
     chat_data['last_list'] = []
-    print (chat_data.values)
+    print (chat_data.values())
     job = job_queue.run_repeating(parse_for_new_cars, 3600, context=chat_data)
-    print args[0]
+    print (args[0])
     chat_data['job'] = job
 
 
@@ -30,22 +29,22 @@ def parse_for_new_cars(bot, job):
     r = s.get('http://new.poolbeheer.nl/token='+job.context['token'])
     current_ids = re.findall("(?:/poolsite/select/car_id=)(\d+)", r.text)
     new_car_found = False
-    print 'Current list: '
-    print job.context['last_list']
+    print ('Current list: ')
+    print (job.context['last_list'])
     for carid in current_ids:
         if int(carid) not in job.context['last_list']:
-	    new_car_found = True
-	    r2 = s.get('http://new.poolbeheer.nl/poolsite/select/car_id='+carid)
-	    auto = re.search('(?:<h3>)(.*?)(?:</h3>)', r2.text).group(1)
-	    bot.send_message(job.context['id'], 'New car found:' + auto)
+            new_car_found = True
+        r2 = s.get('http://new.poolbeheer.nl/poolsite/select/car_id='+carid)
+        auto = re.search('(?:<h3>)(.*?)(?:</h3>)', r2.text).group(1)
+        bot.send_message(job.context['id'], 'New car found:' + auto)
     job.context['last_list'] = map(int, current_ids)
     if not new_car_found:
-    	print 'Job run. No car found'
+            print ('Job run. No car found')
 
 def stop(bot, update, args, job_queue, user_data, chat_data):
     '''Stop getting messages'''
     if 'job' in chat_data and chat_data['job']:
-    	chat_data['job'].schedule_removal()
+        chat_data['job'].schedule_removal()
     if 'token' in chat_data:
         chat_data['token'] = ''
     update.message.reply_text('Stopped searching for pool cars')
